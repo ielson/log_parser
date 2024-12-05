@@ -414,6 +414,7 @@ class LogViewerApp:
 
             # Adjust column widths
             self.adjust_column_widths()
+            self.ensure_selected_item_visible()
         except Exception as e:
             print(f"Error updating display: {e}")
 
@@ -504,6 +505,15 @@ class LogViewerApp:
         # Display the context menu
         self.popup_menu.tk_popup(event.x_root, event.y_root)
         self.popup_menu.grab_release()
+
+    def ensure_selected_item_visible(self):
+        selected_items = self.log_tree.selection()
+        if not selected_items:
+            return  # No selection to handle
+
+        # Ensure the first selected item is visible
+        item = selected_items[0]
+        self.log_tree.see(item)
 
     def run(self):
         self.root.mainloop()
