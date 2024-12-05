@@ -4,6 +4,7 @@ from tkinter import font
 from tkinter import ttk
 import re
 from datetime import datetime
+import os
 
 class LogViewerApp:
     def __init__(self, root):
@@ -29,6 +30,11 @@ class LogViewerApp:
 
         # Selected message IDs
         self.selected_message_ids = set()
+
+        # Last opened directory
+        self.last_opened_dir = None
+        self.config_file = 'config.txt'
+        self.load_last_directory()
 
         # Create GUI components
         self.create_widgets()
@@ -169,8 +175,17 @@ class LogViewerApp:
             print(f"Error updating end time: {e}")
 
     def open_log_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Log files", "*.log"), ("All files", "*.*")])
+        # Use the last opened directory if available
+        initial_dir = self.last_opened_dir if self.last_opened_dir else os.getcwd()
+
+        file_path = filedialog.askopenfilename(
+            filetypes=[("Log files", "*.log"), ("All files", "*.*")],
+            initialdir=initial_dir
+        )
         if file_path:
+            # Update the last opened directory
+            self.last_opened_dir = os.path.dirname(file_path)
+            self.save_last_directory()
             self.parse_log_file(file_path)
 
     def parse_log_file(self, file_path):
@@ -369,6 +384,24 @@ class LogViewerApp:
         for item in selected_items:
             message_id = int(self.log_tree.item(item, 'tags')[0])
             self.selected_message_ids.add(message_id)
+
+    def load_last_directory(self):
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r') as f:
+                    self.last_opened_dir = f.readline().strip()
+                    if not os.path.isdir(self.last_opened_dir):
+                        self.last_opened_dir = None
+        except Exception as e:
+            print(f"Error loading last directory: {e}")
+            self.last_opened_dir = None
+
+    def save_last_directory(self):
+        try:
+            with open(self.config_file, 'w') as f:
+                f.write(self.last_opened_dir or '')
+        except Exception as e:
+            print(f"Error saving last directory: {e}")
 
     def run(self):
         self.root.mainloop()

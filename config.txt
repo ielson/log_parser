@@ -1,0 +1,1 @@
+/home/ielson/workspaces/hyro-v1.8.0/workspace/src/guidance/hyro_trajectory_manager/docs
