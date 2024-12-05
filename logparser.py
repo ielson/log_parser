@@ -84,6 +84,12 @@ class LogViewerApp:
         self.log_tree.column("module", width=150, anchor="center", stretch=False)
         self.log_tree.column("message", width=400, anchor="w", stretch=False)
 
+        # Dealing with copying through ctrl-c or left click menu
+        self.root.bind("<Control-c>", self.copy_selected_message)
+        self.popup_menu = tk.Menu(self.root, tearoff=False)
+        self.popup_menu.add_command(label="Copy", command=self.copy_selected_message)
+        self.log_tree.bind("<Button-3>", self.on_right_click)
+
         # Configure styles
         style = ttk.Style()
 
@@ -468,6 +474,36 @@ class LogViewerApp:
                 f.write(self.last_opened_dir or "")
         except Exception as e:
             print(f"Error saving last directory: {e}")
+
+    def copy_selected_message(self, event=None):
+        # Get the currently selected item
+        selection = self.log_tree.selection()
+        if not selection:
+            return  # No item selected
+
+        # Assuming the columns are (timestamp, level, module, message)
+        # The message is the 4th column (index 3 in values tuple)
+        item_id = selection[0]
+        values = self.log_tree.item(item_id, "values")
+        if values and len(values) > 3:
+            message_text = values[3]
+            # Copy to clipboard
+            self.root.clipboard_clear()
+            self.root.clipboard_append(message_text)
+
+    def on_right_click(self, event):
+        # Select the row under the cursor
+        row_id = self.log_tree.identify_row(event.y)
+        if row_id:
+            # Clear existing selection
+            self.log_tree.selection_remove(*self.log_tree.selection())
+            # Select this row
+            self.log_tree.selection_add(row_id)
+            self.log_tree.focus(row_id)
+
+        # Display the context menu
+        self.popup_menu.tk_popup(event.x_root, event.y_root)
+        self.popup_menu.grab_release()
 
     def run(self):
         self.root.mainloop()
