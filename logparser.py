@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, simpledialog
 from tkinter import font
 from tkinter import ttk
 import re
@@ -65,6 +65,17 @@ class LogViewerApp:
         self.module_label = tk.Label(self.control_frame, text="Modules")
         self.module_label.pack()
 
+        # Create "Saved Messages" section
+        self.saved_messages_label = tk.Label(self.control_frame, text="Saved Messages")
+        self.saved_messages_label.pack(pady=(10, 0))
+
+        self.saved_messages_listbox = tk.Listbox(self.control_frame, height=10)
+        self.saved_messages_listbox.pack(fill=tk.X, padx=5, pady=5)
+
+        self.saved_messages_listbox.bind(
+            "<<ListboxSelect>>", self.on_saved_message_select
+        )
+
         # Create Treeview widget for log messages
         columns = ("timestamp", "level", "module", "message")
         self.log_tree = ttk.Treeview(
@@ -88,6 +99,7 @@ class LogViewerApp:
         self.root.bind("<Control-c>", self.copy_selected_message)
         self.popup_menu = tk.Menu(self.root, tearoff=False)
         self.popup_menu.add_command(label="Copy", command=self.copy_selected_message)
+        self.popup_menu.add_command(label="Save Message", command=self.save_message)
         self.log_tree.bind("<Button-3>", self.on_right_click)
 
         # Configure styles
@@ -216,10 +228,12 @@ class LogViewerApp:
             initialdir=initial_dir,
         )
         if file_path:
+            self.current_log_file = os.path.abspath(file_path)
             # Update the last opened directory
             self.last_opened_dir = os.path.dirname(file_path)
             self.save_last_directory()
             self.parse_log_file(file_path)
+            self.load_saved_messages(file_path)
 
     def parse_log_file(self, file_path):
         # Clear existing data
@@ -230,9 +244,16 @@ class LogViewerApp:
         self.selected_modules.clear()
         self.selected_message_ids.clear()
 
+        # Preserve saved messages listbox and its label
+        saved_messages_widgets = [
+            self.saved_messages_label,
+            self.saved_messages_listbox,
+        ]
+
         # Clear control_frame (remove old widgets)
         for widget in self.control_frame.winfo_children():
-            widget.destroy()
+            if widget not in saved_messages_widgets:
+                widget.destroy()
 
         # Regular expression to parse log lines
         log_pattern = re.compile(r"\[(.*?)\]\[(.*?)\]\[(.*?)\] (.*)")
@@ -273,9 +294,6 @@ class LogViewerApp:
                             "module": module,
                             "message": message,
                         }
-                        # self.messages.append(current_message)
-                        # self.log_levels.add(level)
-                        # self.modules.add(module)
                     else:
                         # continuation of the previous message
                         if current_message:
@@ -357,6 +375,57 @@ class LogViewerApp:
             print(f"Failed to read log file: {e}")  # Print error to terminal
             messagebox.showerror("Error", f"Failed to read log file: {e}")
 
+    def load_saved_messages(self, file_path):
+        self.saved_messages_listbox.delete(0, tk.END)  # Clear existing list
+        saved_file = "saved_messages.txt"
+
+        if not os.path.exists(saved_file):
+            return
+
+        # Normalize the file path for comparison
+        normalized_file_path = os.path.abspath(file_path)
+
+        with open(saved_file, "r") as f:
+            for line in f:
+                saved_message = eval(line.strip())  # Deserialize the saved message
+
+                # Normalize the saved log file path for comparison
+                saved_log_file = os.path.abspath(saved_message["log_file"])
+
+                # Only load messages associated with the current log file
+                if saved_log_file == normalized_file_path:
+                    name = saved_message.get(
+                        "name", f"Message {saved_message['message_id']}"
+                    )
+                    self.saved_messages_listbox.insert(
+                        tk.END, f"{name}: {saved_message['details'][3]}"
+                    )
+
+    def on_saved_message_select(self, event):
+        selection = self.saved_messages_listbox.curselection()
+        if not selection:
+            return
+
+        selected_text = self.saved_messages_listbox.get(selection[0])
+
+        try:
+            # Extract the message ID from the saved entry
+            # Assuming the format is now "Name: Message"
+            # Find the message by its text content instead
+            message_details = selected_text.split(": ", 1)  # Split only at the first ": "
+            if len(message_details) < 2:
+                return  # Malformed entry, ignore
+
+            # Find and select the corresponding message in the Treeview
+            message_text = message_details[1]
+            for item in self.log_tree.get_children():
+                if self.log_tree.item(item, "values")[3] == message_text:
+                    self.log_tree.selection_set(item)
+                    self.log_tree.see(item)
+                    break
+        except Exception as e:
+            print(f"Error selecting saved message: {e}")
+
     def update_display(self):
         try:
             # Update selected levels and modules
@@ -415,8 +484,37 @@ class LogViewerApp:
             # Adjust column widths
             self.adjust_column_widths()
             self.ensure_selected_item_visible()
+
+            # Update saved messages listbox
+            # self.update_saved_messages_listbox()
+
         except Exception as e:
             print(f"Error updating display: {e}")
+
+    def update_saved_messages_listbox(self):
+        """
+        Updates the saved messages listbox to reflect only the saved messages relevant
+        to the currently loaded log file.
+        """
+        try:
+            saved_file = "saved_messages.txt"
+            if not os.path.exists(saved_file):
+                return
+
+            # Clear the listbox
+            self.saved_messages_listbox.delete(0, tk.END)
+
+            # Reload saved messages for the current log file
+            with open(saved_file, "r") as f:
+                for line in f:
+                    saved_message = eval(line.strip())  # Deserialize the saved message
+                    if saved_message["log_file"] == self.last_opened_dir:
+                        self.saved_messages_listbox.insert(
+                            tk.END,
+                            f"Message {saved_message['message_id']}: {saved_message['details'][3]}",
+                        )
+        except Exception as e:
+            print(f"Error updating saved messages listbox: {e}")
 
     def adjust_column_widths(self):
         # Get font used in the Treeview
@@ -514,6 +612,43 @@ class LogViewerApp:
         # Ensure the first selected item is visible
         item = selected_items[0]
         self.log_tree.see(item)
+
+    def save_message(self):
+        # Ensure a message is selected
+        selection = self.log_tree.selection()
+        if not selection:
+            messagebox.showinfo("Save Message", "Please select a message to save.")
+            return
+
+        # Get the selected message details
+        item_id = selection[0]
+        values = self.log_tree.item(item_id, "values")
+        if not values:
+            return
+
+        # Ask the user for a name for the saved message
+        name = simpledialog.askstring("Save Message", "Enter a name for this message:")
+        if not name:  # If no name is provided, do not save the message
+            return
+
+        # Construct the saved message data
+        message_id = self.log_tree.item(item_id, "tags")[0]
+        saved_message = {
+            "log_file": self.current_log_file,  # Reference the current log file
+            "message_id": message_id,
+            "name": name,  # Add the name to the saved data
+            "details": values,
+        }
+
+        # Save to a file or in-memory structure
+        saved_file = "saved_messages.txt"
+        with open(saved_file, "a") as f:
+            f.write(f"{saved_message}\n")
+
+        # Add to "Saved Messages" listbox
+        self.saved_messages_listbox.insert(tk.END, f"{name}: {values[3]}")
+
+        messagebox.showinfo("Save Message", "Message saved successfully!")
 
     def run(self):
         self.root.mainloop()
