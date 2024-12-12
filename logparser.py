@@ -89,7 +89,6 @@ class LogViewerApp:
         self.log_tree.heading("module", text="Module")
         self.log_tree.heading("message", text="Message")
 
-        # Set initial column widths and allow 'message' column to stretch
         self.log_tree.column("timestamp", width=100, anchor="center", stretch=False)
         self.log_tree.column("level", width=80, anchor="center", stretch=False)
         self.log_tree.column("module", width=150, anchor="center", stretch=False)
@@ -359,7 +358,7 @@ class LogViewerApp:
 
             # Create Checkbuttons for modules
             for module in sorted(self.modules):
-                var = tk.BooleanVar(value=True)
+                var = tk.BooleanVar(value=False)
                 cb = tk.Checkbutton(
                     self.control_frame,
                     text=module,
@@ -412,7 +411,9 @@ class LogViewerApp:
             # Extract the message ID from the saved entry
             # Assuming the format is now "Name: Message"
             # Find the message by its text content instead
-            message_details = selected_text.split(": ", 1)  # Split only at the first ": "
+            message_details = selected_text.split(
+                ": ", 1
+            )  # Split only at the first ": "
             if len(message_details) < 2:
                 return  # Malformed entry, ignore
 
