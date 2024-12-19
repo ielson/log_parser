@@ -67,12 +67,19 @@ class GUIComponents:
         self.log_level_label = tk.Label(self.control_frame, text="Log Levels")
         self.log_level_label.pack()
 
+        self.log_level_frame = tk.Frame(self.control_frame)  # Placeholder for log level checkboxes
+        self.log_level_frame.pack(fill=tk.X, pady=(5, 10))
+
         # Placeholder for log level checkboxes (set dynamically)
         self.log_level_vars = {}
 
         # Modules Label
         self.module_label = tk.Label(self.control_frame, text="Modules")
         self.module_label.pack()
+
+        self.module_frame = tk.Frame(self.control_frame)  # Placeholder for module checkboxes
+        self.module_frame.pack(fill=tk.X, pady=(5, 10))
+
 
         # Placeholder for module checkboxes (set dynamically)
         self.module_vars = {}
@@ -126,19 +133,21 @@ class GUIComponents:
         self.end_time_display.pack()
 
     def update_log_levels(self, log_levels, update_callback):
-        # Clear previous log level checkboxes
-        for level, var in self.log_level_vars.items():
-            var.set(False)
+        # Clear existing log level checkboxes
+        for widget in self.control_frame.pack_slaves():
+            if hasattr(widget, "is_log_level"):  # Custom attribute to identify log level widgets
+                widget.destroy()
 
         # Add new log level checkboxes
         for level in sorted(log_levels):
             var = tk.BooleanVar(value=True)
             cb = tk.Checkbutton(
-                self.control_frame,
+                self.log_level_frame,
                 text=level,
                 variable=var,
                 command=update_callback,
             )
+            cb.is_log_level = True  # Mark this widget as a log level widget
             cb.pack(anchor="w")
             self.log_level_vars[level] = var
 
@@ -151,19 +160,21 @@ class GUIComponents:
         self.end_time_display.config(text=formatted_time)
 
     def update_modules(self, modules, update_callback):
-        # Clear previous module checkboxes
-        for module, var in self.module_vars.items():
-            var.set(False)
+        # Clear existing module checkboxes
+        for widget in self.control_frame.pack_slaves():
+            if hasattr(widget, "is_module"):  # Custom attribute to identify module widgets
+                widget.destroy()
 
         # Add new module checkboxes
         for module in sorted(modules):
-            var = tk.BooleanVar(value=True)
+            var = tk.BooleanVar(value=False)
             cb = tk.Checkbutton(
-                self.control_frame,
+                self.module_frame,
                 text=module,
                 variable=var,
                 command=update_callback,
             )
+            cb.is_module = True  # Mark this widget as a module widget
             cb.pack(anchor="w")
             self.module_vars[module] = var
 
