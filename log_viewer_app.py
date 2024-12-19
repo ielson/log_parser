@@ -78,6 +78,12 @@ class LogViewerApp:
         self.messages = self.log_parser.parse(file_path)
         self.last_opened_dir = os.path.dirname(file_path)
 
+        # Normalize timestamps and store in messages
+        # for msg in self.messages:
+        #     msg["normalized_timestamp"] = (
+        #         (msg["timestamp"] - self.min_timestamp) / self.time_span * 1000
+        #     )
+
         # Extract log levels and modules
         self.log_levels = {msg["level"] for msg in self.messages}
         self.modules = {msg["module"] for msg in self.messages}
@@ -86,6 +92,13 @@ class LogViewerApp:
         self.min_timestamp, self.max_timestamp = self.log_parser.get_time_range(
             self.messages
         )
+
+        self.start_timestamp = self.min_timestamp
+        self.end_timestamp = self.max_timestamp
+
+        self.time_span = (
+            self.max_timestamp - self.min_timestamp or 1
+        )  # Avoid division by zero
 
         # Update GUI with parsed data
         self.gui.update_log_levels(self.log_levels, self.update_display)
@@ -112,7 +125,9 @@ class LogViewerApp:
         filtered_messages = [
             msg
             for msg in self.messages
-            if msg["level"] in selected_levels and msg["module"] in selected_modules
+            if msg["level"] in selected_levels
+            and msg["module"] in selected_modules
+            and self.start_timestamp <= msg["timestamp"] <= self.end_timestamp
         ]
 
         # Display messages in the log tree
@@ -158,13 +173,25 @@ class LogViewerApp:
 
     def update_start_time(self, val):
         try:
+            print(f"start pos {float(val)}, time span {self.time_span}")
             self.start_pos = float(val)
             self.start_timestamp = (
                 self.min_timestamp + (self.start_pos / 1000) * self.time_span
             )
-            self.start_time_display.config(
-                text=self.format_timestamp(self.start_timestamp)
-            )
+
+            # self.time_span = (
+            #     self.max_timestamp - self.min_timestamp or 1
+            # )  # Avoid division by zero
+
+            # # Normalize timestamps and store in messages
+            # for msg in self.messages:
+            #     msg["normalized_timestamp"] = (
+            #         (msg["timestamp"] - self.min_timestamp) / self.time_span * 1000
+            #     )
+
+            print(f"value sent to update start time display: {self.start_timestamp}")
+            # Update the GUI component with the formatted timestamp
+            self.gui.update_start_time_display(self.start_timestamp)
             self.update_display()
         except Exception as e:
             print(f"Error updating start time: {e}")
@@ -175,7 +202,7 @@ class LogViewerApp:
             self.end_timestamp = (
                 self.min_timestamp + (self.end_pos / 1000) * self.time_span
             )
-            self.end_time_display.config(text=self.format_timestamp(self.end_timestamp))
+            self.gui.update_end_time_display(self.end_timestamp)
             self.update_display()
         except Exception as e:
             print(f"Error updating end time: {e}")

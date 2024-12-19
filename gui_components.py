@@ -17,7 +17,6 @@ class GUIComponents:
         self.log_level_vars = {}
         self.module_vars = {}
 
-
     def create_menu(self, open_callback):
         file_menu = tk.Menu(self.menu, tearoff=False)
         self.menu.add_cascade(label="File", menu=file_menu)
@@ -26,14 +25,12 @@ class GUIComponents:
         file_menu.add_command(label="Exit", command=self.root.quit)
         self.root.config(menu=self.menu)
 
-
     def create_frames(self):
         self.control_frame = tk.Frame(self.root)
         self.control_frame.pack(side=tk.LEFT, fill=tk.Y)
 
         self.display_frame = tk.Frame(self.root)
         self.display_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-
 
     def create_log_display(self, display_callback):
         columns = ("timestamp", "level", "module", "message")
@@ -65,8 +62,6 @@ class GUIComponents:
         # self.log_tree.column("message", width=400, anchor="w", stretch=False)
         self.log_tree.bind("<<TreeviewSelect>>", display_callback)
 
-
-
     def create_controls(self, update_display_callback):
         # Log Levels Label
         self.log_level_label = tk.Label(self.control_frame, text="Log Levels")
@@ -88,7 +83,6 @@ class GUIComponents:
 
         self.saved_messages_listbox = tk.Listbox(self.control_frame, height=10)
         self.saved_messages_listbox.pack(fill=tk.X, padx=5, pady=5)
-
 
     def create_time_sliders(self, update_start_time, update_end_time):
         separator = tk.Frame(self.control_frame, height=2, bd=1, relief=tk.SUNKEN)
@@ -131,7 +125,6 @@ class GUIComponents:
         self.end_time_display = tk.Label(self.control_frame, text="")
         self.end_time_display.pack()
 
-
     def update_log_levels(self, log_levels, update_callback):
         # Clear previous log level checkboxes
         for level, var in self.log_level_vars.items():
@@ -149,6 +142,13 @@ class GUIComponents:
             cb.pack(anchor="w")
             self.log_level_vars[level] = var
 
+    def update_start_time_display(self, timestamp):
+        formatted_time = self.format_timestamp(timestamp)
+        self.start_time_display.config(text=formatted_time)
+
+    def update_end_time_display(self, timestamp):
+        formatted_time = self.format_timestamp(timestamp)
+        self.end_time_display.config(text=formatted_time)
 
     def update_modules(self, modules, update_callback):
         # Clear previous module checkboxes
@@ -167,10 +167,9 @@ class GUIComponents:
             cb.pack(anchor="w")
             self.module_vars[module] = var
 
-
     def show_context_menu(self, event, copy_callback, save_callback):
         # Create context menu if not already created
-        if not hasattr(self, 'popup_menu'):
+        if not hasattr(self, "popup_menu"):
             self.popup_menu = tk.Menu(self.root, tearoff=0)
             self.popup_menu.add_command(label="Copy", command=copy_callback)
             self.popup_menu.add_command(label="Save Message", command=save_callback)
@@ -178,7 +177,6 @@ class GUIComponents:
             self.popup_menu.tk_popup(event.x_root, event.y_root)
         finally:
             self.popup_menu.grab_release()
-
 
     def select_message_in_log_tree(self, message_id):
         # Iterate over log tree items to find the message
@@ -189,37 +187,43 @@ class GUIComponents:
                 self.log_tree.see(item)
                 break
 
-
     def populate_log_tree(self, messages):
         for item in self.log_tree.get_children():
             self.log_tree.delete(item)
 
         for msg in messages:
+            formatted_timestamp = self.format_timestamp(msg["timestamp"])
             self.log_tree.insert(
-                "", tk.END, values=(msg["timestamp"], msg["level"], msg["module"], msg["message"])
+                "",
+                tk.END,
+                values=(
+                    formatted_timestamp,
+                    msg["level"],
+                    msg["module"],
+                    msg["message"],
+                ),
             )
-
 
     def update_time_sliders(self, min_time, max_time):
         """
         Update the time sliders with the minimum and maximum timestamps.
         """
-        self.start_time_slider.config(from_=min_time, to=max_time)
-        self.end_time_slider.config(from_=min_time, to=max_time)
+        self.start_time_slider.config(from_=0, to=1000)
+        self.end_time_slider.config(from_=0, to=1000)
 
         # Reset slider positions to the new range
-        self.start_time_slider.set(min_time)
-        self.end_time_slider.set(max_time)
+        self.start_time_slider.set(0)
+        self.end_time_slider.set(1000)
 
         # Update display labels
         self.start_time_display.config(text=self.format_timestamp(min_time))
         self.end_time_display.config(text=self.format_timestamp(max_time))
-
 
     def format_timestamp(self, timestamp):
         """
         Format a UNIX timestamp into a human-readable string.
         """
         from datetime import datetime
+
         dt = datetime.fromtimestamp(timestamp)
         return dt.strftime("%Y-%m-%d %H:%M:%S")
